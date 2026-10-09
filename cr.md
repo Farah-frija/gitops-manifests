@@ -1,8 +1,8 @@
 # TP : Mise en œuvre du Continuous Deployment avec GitOps et ArgoCD
 
-**Étudiante :** Farah Frija — INSAT, 4ᵉ année Génie Logiciel
+**Étudiante :** Farah Frija - Ali Wala - Gharbi Emna - Zarrouki Rima — DevOps Avancé, INSAT, 5ᵉ année Génie Logiciel
 **Date :** 09/10/2026
-**Dépôt Git :** https://github.com/<TON_USER>/gitops-manifests
+
 
 ---
 
@@ -157,7 +157,7 @@ kubectl get all -n demo
 
 **État initial :** application `demo-nginx` Synced / Healthy, 2 réplicas.
 
-> 📸 *Capture : UI ArgoCD avant modification (2 pods)*
+
 
 **Action :** dans `overlays/dev/kustomization.yaml`, passage de `count: 2` à `count: 4`, puis commit et push.
 
@@ -174,7 +174,7 @@ kubectl get deployment demo-nginx -n demo
 
 ArgoCD détecte le nouveau commit (statut `OutOfSync` brièvement), synchronise automatiquement, et le Deployment passe à 4/4 réplicas.
 
-> 📸 *Captures : (1) UI pendant la synchronisation, (2) UI finale avec 4 pods, (3) sortie de `kubectl get deployment`*
+
 
 **Conclusion :** le déploiement est piloté uniquement par Git (pull-based, SSOT). Aucun accès direct au cluster n'a été nécessaire.
 
@@ -193,7 +193,7 @@ kubectl get pods -n demo -w
 
 ArgoCD détecte que la ressource déclarée dans Git n'existe plus sur le cluster (statut `OutOfSync` / `Missing`), puis la recrée immédiatement grâce au `selfHeal: true`. Les 4 pods redémarrent.
 
-> 📸 *Captures : (1) commande `kubectl delete`, (2) UI avec la ressource manquante / OutOfSync, (3) UI après réconciliation, Synced / Healthy*
+![](delete_dep.png)
 
 **Scénario B : modification d'une ressource**
 
@@ -201,10 +201,11 @@ ArgoCD détecte que la ressource déclarée dans Git n'existe plus sur le cluste
 kubectl scale deployment demo-nginx -n demo --replicas=1
 kubectl get deployment demo-nginx -n demo -w
 ```
+![](agro_sync_after_delete.png)
 
 Le nombre de réplicas est forcé à 1 à la main. ArgoCD constate l'écart avec Git (4 réplicas) et le corrige automatiquement.
 
-> 📸 *Captures : (1) réplicas passés à 1, (2) retour automatique à 4/4*
+
 
 **Conclusion :** ArgoCD compare en continu l'état réel du cluster avec l'état désiré dans Git. Toute dérive est corrigée sans intervention : le cluster ne peut pas s'écarter durablement de Git.
 
@@ -246,7 +247,8 @@ kubectl describe pod <nom-du-pod-en-erreur> -n demo
 
 Les anciens pods continuent de tourner pendant l'échec grâce à la stratégie RollingUpdate : l'application reste disponible.
 
-> 📸 *Captures : (1) UI avec Synced + Degraded, (2) `kubectl get pods` avec ErrImagePull, (3) `kubectl describe pod` (section Events)*
+![](rolling_update.png)
+![](kubectl_watch_error.png)
 
 **Conclusion :** ArgoCD vérifie deux choses distinctes. *Sync* = « ce qui est déployé est-il identique à Git ? ». *Health* = « ce qui est déployé fonctionne-t-il ? ». Ici la synchronisation est parfaite, mais la santé est dégradée, car l'erreur vient de la déclaration elle-même.
 
@@ -258,7 +260,7 @@ Les anciens pods continuent de tourner pendant l'échec grâce à la stratégie 
 
 **Étape 1 : consulter l'historique.** Onglet **History and Rollback** : chaque synchronisation réussie y figure avec son commit, son auteur et sa date. La révision stable est celle du commit `fix: progressDeadlineSeconds au niveau du Deployment`.
 
-> 📸 *Capture : onglet History and Rollback avec la liste des révisions*
+![](roll_back.png)
 
 **Étape 2 : désactiver l'Auto-Sync.** ArgoCD refuse le rollback tant que la synchronisation automatique est active (elle ré-appliquerait aussitôt le dernier commit Git). Dans l'UI : **App Details → Sync Policy → Disable Auto-Sync**.
 
@@ -271,7 +273,7 @@ kubectl get deployment demo-nginx -n demo -o jsonpath="{.spec.template.spec.cont
 
 Les pods repassent en `Running` avec `nginx:1.25` et l'état de santé redevient `Healthy`. Le statut de synchronisation est alors `OutOfSync` : c'est normal, le cluster est revenu à l'ancienne révision alors que Git contient encore le commit défectueux.
 
-> 📸 *Captures : (1) dialogue de rollback, (2) application Healthy, (3) image `nginx:1.25` dans le terminal*
+![](out_of_sync.png)
 
 **Étape 4 : corriger Git durablement.** Le rollback est temporaire. On annule le mauvais commit dans Git (nouveau commit, sans réécrire l'historique), puis on réactive l'automatisation :
 
@@ -282,7 +284,7 @@ kubectl apply -f argocd/application.yaml
 
 La seconde commande réapplique l'Application telle que définie dans Git (Auto-Sync, Prune et Self-Heal), et l'état redevient `Synced` / `Healthy`.
 
-> 📸 *Capture : application Synced / Healthy après le revert, History avec la nouvelle révision*
+![](sync_healthy.png)
 
 **Conclusion :** ArgoCD conserve l'historique des déploiements, ce qui permet un retour immédiat à un état stable depuis l'UI. Le rollback sert à rétablir le service rapidement ; la correction définitive passe ensuite par Git, qui reste la source de vérité.
 
