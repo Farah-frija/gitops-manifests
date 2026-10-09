@@ -5,7 +5,7 @@ resources:
   - ../../base
 images:
   - name: nginx
-    newTag: "1.25"
+    newTag: "9.99.99-inexistant"
 replicas:
   - name: demo-nginx
     count: 4 
