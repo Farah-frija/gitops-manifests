@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: demo
+resources:
+  - ../../base
+images:
+  - name: nginx
+    newTag: "1.25"
+replicas:
+  - name: demo-nginx
+    count: 2
